@@ -1,6 +1,6 @@
 #Arduino alive
 # Define the serial port settings
-$portName = "COM9"  # Replace with your Arduino's COM port
+$portName = "COM11"  # Replace with your Arduino's COM port
 $baudRate = 9600    # Match with the baud rate set in your Arduino sketch
 
 
@@ -19,7 +19,7 @@ $fileWelcome = "welcome.html"
 
 
 # Define the file name
-$fileGame = "My project (2)"
+$fileGame = "Super Poster Boy 2"
 
 
 # Define the file name
