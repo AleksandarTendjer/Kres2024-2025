@@ -117,51 +117,34 @@ function Focus-WindowByProcessName {
     )
 
     $found = $false
-    foreach ($p in Get-Process -Name $processName -ErrorAction SilentlyContinue) {
+    try{
+    $process = Get-Process -Name $processName -ErrorAction Stop
+    foreach ($p in $process) {
         $hWnd = $p.MainWindowHandle
-        if ($hWnd -ne [IntPtr]::Zero) {
-            Write-Host "Found window handle for process ${processName}: ${hWnd}"
-            if ([User32]::IsIconic($hWnd)) {
-                Write-Host "Window is minimized, restoring it..."
-                [User32]::ShowWindowAsync($hWnd, 9) # 9 = SW_RESTORE
+        if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+                if ([User32]::IsIconic($p.MainWindowHandle)) {
+                    [User32]::ShowWindowAsync($p.MainWindowHandle, [User32]::SW_RESTORE)
+                }
+                if ([User32]::SetForegroundWindow($p.MainWindowHandle)) {
+                    return $true
+                }
             }
-            $result = [User32]::SetForegroundWindow($hWnd)
-            if ($result) {
-                Write-Host "Successfully set foreground window for ${processName}"
-                $found = $true
-            } else {
-                Write-Host "Failed to set foreground window for ${processName}"
-            }
-            break
-        } else {
-            Write-Host "No window handle found for process ${processName}"
-        }
     }
-    
-    # If not found by process name, try by window title
-    if (-not $found -and $windowTitle) {
-        Write-Host "Attempting to find window by title: ${windowTitle}"
-        $hWnd = [User32]::FindWindow($null, $windowTitle)
-        if ($hWnd -ne [IntPtr]::Zero) {
-            Write-Host "Found window handle for title ${windowTitle}: ${hWnd}"
-            if ([User32]::IsIconic($hWnd)) {
-                Write-Host "Window is minimized, restoring it..."
-                [User32]::ShowWindowAsync($hWnd, 9) # 9 = SW_RESTORE
+     # If no main window found, try by title
+        if ($windowTitle) {
+            $hWnd = [User32]::FindWindow($null, $windowTitle)
+            if ($hWnd -ne [IntPtr]::Zero) {
+                if ([User32]::IsIconic($hWnd)) {
+                    [User32]::ShowWindowAsync($hWnd, [User32]::SW_RESTORE)
+                }
+                return [User32]::SetForegroundWindow($hWnd)
             }
-            $result = [User32]::SetForegroundWindow($hWnd)
-            if ($result) {
-                Write-Host "Successfully set foreground window for ${windowTitle}"
-                $found = $true
-            } else {
-                Write-Host "Failed to set foreground window for ${windowTitle}"
-            }
-        } else {
-            Write-Host "No window handle found for title ${windowTitle}"
         }
+    } catch {
+        Write-Host "Focus error: $_"
     }
-    
-    return $found
 }
+    
 
 # Function to preload Chrome
 function Preload-Chrome {
@@ -214,12 +197,28 @@ function Trigger-Screensaver {
     } else {
         Write-Host "Failed to activate Intro Chrome window."
     }
+
+    $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
+    if ($screensaverProcess) {
+        Write-Host "Screensaver is already running. Skipping new instance,switching focus"
+                $focused = Focus-WindowByProcessName -processName "VideoScreensaver" -windowTitle "VideoScreensaver"
+        if (-not $focused) {
+            Write-Host "Could not focus screensaver window, forcing new instance..."
+            # If focus failed, kill existing instance and start new
+            Stop-Process -Name "VideoScreensaver" -Force
+            Start-Process $fullSaver
+        }
+        return
+    }
     Write-Host "Triggering screensaver..."
-    $screensaverPath = "$fullSaver"
-    if (Test-Path $screensaverPath) {
-        Start-Process $screensaverPath
+    if (Test-Path $fullSaver) {
+        # Start with WindowStyle Hidden to prevent flash
+        Start-Process $fullSaver -WindowStyle Hidden
+        # Give it time to launch before focusing
+        Start-Sleep -Milliseconds 500
+        Focus-WindowByProcessName -processName "VideoScreensaver" -windowTitle "VideoScreensaver"
     } else {
-        Write-Host "Screensaver path not found: $screensaverPath"
+        Write-Host "Screensaver path not found: $fullSaver"
     }
 }
 
@@ -239,13 +238,9 @@ function Deactivate-Screensaver {
     
     
     # Close the screensaver process if it's running
-    $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
-    if ($screensaverProcess) {
-        Stop-Process -Name "VideoScreensaver" -Force
-    }
-    
+     Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue | Stop-Process -Force
+
      # Wait a moment before showing the graphical intro
-    
     Show-GraphicalIntro
     Start-Sleep -Milliseconds 1000
     # Wait a moment after showing the graphical introf
