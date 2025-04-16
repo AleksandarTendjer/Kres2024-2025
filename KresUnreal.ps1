@@ -28,36 +28,6 @@ $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 $fullSaver = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
 
-
-# Ensure the InputSimulator type is defined
-if (-not ("InputSimulator" -as [Type])) {
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class InputSimulator {
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
-    public const int MOUSEEVENTF_MOVE = 0x0001;
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-    public const int KEYEVENTF_EXTENDEDKEY = 0x1;
-    public const int KEYEVENTF_KEYUP = 0x2;
-    public const byte VK_SHIFT = 0x10;
-
-    public static void MoveMouse() {
-        mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, UIntPtr.Zero);
-        mouse_event(MOUSEEVENTF_MOVE, 0, -1, 0, UIntPtr.Zero);
-    }
-
-    public static void PressKey() {
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-    }
-}
-"@
-}
-
 # Define the necessary user32.dll methods if they don't already exist
 if (-not ([System.Management.Automation.PSTypeName]'User32').Type) {
     Add-Type @"
@@ -115,7 +85,6 @@ function Focus-WindowByProcessName {
         [string]$processName,
         [string]$windowTitle = $null
     )
-
     $found = $false
     try{
     $process = Get-Process -Name $processName -ErrorAction Stop
@@ -222,23 +191,12 @@ function Trigger-Screensaver {
     }
 }
 
-# Function to simulate mouse movement and key press
-function Simulate-Input {
-    Write-Host "Simulating mouse movement and key press..."
-    Start-Sleep -Milliseconds 100
-    [InputSimulator]::PressKey()
-}
-
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
     Write-Host "Deactivating screensaver..."
-    # Simulate input to ensure the screensaver exits
-    Simulate-Input
-    Start-Sleep -Milliseconds 500
-    
     
     # Close the screensaver process if it's running
-     Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue | Stop-Process -Force
+     Get-Process -Name "VideoScreensaver*" -ErrorAction SilentlyContinue | Stop-Process -Force
 
      # Wait a moment before showing the graphical intro
     Show-GraphicalIntro
@@ -255,8 +213,6 @@ function Count-USBDevices {
     Write-Host "Counting USB devices..."
     Get-WmiObject -Query "SELECT * FROM Win32_USBControllerDevice" | Measure-Object | Select-Object -ExpandProperty Count
 }
-
-
 
 # Main loop
 Write-Host "Entering main loop..."
@@ -279,6 +235,14 @@ while ($true) {
          # Wait for 2 seconds before deactivating the screensaver
         Deactivate-Screensaver
         Unblock-KeyboardInput
+    }
+    $processes = Get-Process -Name "VideoScreensaver*"
+
+    Write-Host "$($processes.count)"
+    Write-Host "$($processes.count -gt 1)"
+
+    if($processes.count -gt 1){
+        Stop-Process -Name "VideoScreensaver*" -Force 
     }
 
     $previousDeviceCount = $currentDeviceCount

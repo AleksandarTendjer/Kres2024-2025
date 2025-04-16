@@ -228,20 +228,9 @@ function Trigger-Screensaver {
 }
 
 
-# Function to simulate mouse movement and key press
-function Simulate-Input {
-    Write-Host "Simulating mouse movement and key press..."
-    Start-Sleep -Milliseconds 150
-    [InputSimulator]::PressKey()
-}
-
-
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
     Write-Host "Deactivating screensaver..."
-    # Simulate input to ensure the screensaver exits
-    Simulate-Input
-    
     
     # Close the screensaver process if it's running
     $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
@@ -268,11 +257,6 @@ function Count-USBDevices {
     Get-WmiObject -Query "SELECT * FROM Win32_USBControllerDevice" | Measure-Object | Select-Object -ExpandProperty Count
 }
 
-
-
-
-
-
 # Main loop
 Write-Host "Entering main loop..."
 $previousDeviceCount = Count-USBDevices
@@ -296,6 +280,14 @@ while ($true) {
         Deactivate-Screensaver
     }
 
+     $processes = Get-Process -Name "VideoScreensaver*"
+
+    Write-Host "$($processes.count)"
+    Write-Host "$($processes.count -gt 1)"
+
+    if($processes.count -gt 1){
+        Stop-Process -Name "VideoScreensaver*" -Force 
+    }
 
     $previousDeviceCount = $currentDeviceCount
 }

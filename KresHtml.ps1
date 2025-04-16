@@ -28,32 +28,6 @@ $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 # Combine the directory and file name to get the full path
 $fullSaver = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
-# Ensure the InputSimulator type is defined
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class InputSimulator {
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
-    public const int MOUSEEVENTF_MOVE = 0x0001;
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-    public const int KEYEVENTF_EXTENDEDKEY = 0x1;
-    public const int KEYEVENTF_KEYUP = 0x2;
-    public const byte VK_SHIFT = 0x10;
-
-    public static void MoveMouse() {
-        mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, UIntPtr.Zero);
-        mouse_event(MOUSEEVENTF_MOVE, 0, -1, 0, UIntPtr.Zero);
-    }
-
-    public static void PressKey() {
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-    }
-}
-"@
 
 # Function to preload Chrome with two tabs
 function Preload-Chrome {
@@ -133,23 +107,20 @@ function Trigger-Screensaver {
 
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
-    Write-Host "Deactivating screensaver..."
-    # Simulate input to ensure the screensaver exits
-    Simulate-Input
-    Start-Sleep -Milliseconds 100  # Wait a moment for the screensaver to exit
+   Write-Host "Deactivating screensaver..."
     
     # Close the screensaver process if it's running
     $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
     if ($screensaverProcess) {
         Stop-Process -Name "VideoScreensaver" -Force
     }
-    
+
     # Unmute system volume
     Unmute-Volume
-    
-    Start-Sleep -Milliseconds 500  # Wait a moment before showing the graphical intro
+     # Wait a moment before showing the graphical intro
+    Start-Sleep -Milliseconds 500
     Show-GraphicalIntro
-    Start-Sleep -Milliseconds 500  # Wait a moment after showing the graphical intro
+    Start-Sleep -Milliseconds 3000
     Show-KioskWebsite
 }
 
