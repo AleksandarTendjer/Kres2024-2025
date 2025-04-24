@@ -182,6 +182,14 @@ function Show-GraphicalIntro {
     $serialPort.Open()
     $serialPort.WriteLine("1")
     $serialPort.Close()
+    Write-Host "Showing graphical intro screen..."
+    $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
+    if ($chromeProcess) {
+        $wshell = New-Object -ComObject wscript.shell
+        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
+        Start-Sleep -Milliseconds 1000
+        $wshell.SendKeys("^1") # Switch to the first tab
+    }
 }
 
 
@@ -240,7 +248,8 @@ function Deactivate-Screensaver {
     
      # Wait a moment before showing the graphical intro
     
-    Show-GraphicalIntro
+     Start-Sleep -Milliseconds 500
+     Show-GraphicalIntro
     Start-Sleep -Milliseconds 3000
      # Wait a moment after showing the graphical introf
     Focus-UnityGame
