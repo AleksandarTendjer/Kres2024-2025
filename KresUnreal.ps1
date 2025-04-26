@@ -19,13 +19,15 @@ $fileGame = "Echoia"
 $fileWelcome = "welcome.html"
 
 # Define the file name
-$fileSaver = "VideoScreensaver-1.0\VideoScreensaver.scr"
+$fileSaver = "videosaver.html"
+
 
 # Combine the directory and file name to get the full path
 $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 
+
 # Combine the directory and file name to get the full path
-$fullSaver = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
+$fileScreensaverFullPath = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
 
 # Define the necessary user32.dll methods if they don't already exist
@@ -122,19 +124,28 @@ function Preload-Chrome {
         Write-Host "Preloading Chrome with welcome.html in fullscreen..."
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
         Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
-        
+        Start-Sleep -Seconds 5
+        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow 
+        Start-Sleep -Seconds 1
     } else {
         Write-Host "Chrome is already running."
     }
 }
+function Show-Page {
+    param (
+        [string]$WebsiteName,
+        [string]$KeySequence
+    )
 
-# Function to show the intro screen by switching to the first tab in Chrome
-function Show-GraphicalIntro {
-    $serialPort.Open()
-    $serialPort.WriteLine("1")
-    $serialPort.Close()
+    Write-Host "Showing $WebsiteName website..."
+    $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
+    if ($chromeProcess) {
+        $wshell = New-Object -ComObject wscript.shell
+        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
+        Start-Sleep -Milliseconds 500
+        $wshell.SendKeys($KeySequence)
+    }
 }
-
 
 # Function to bring Unreal game back to focus
 function Focus-UnrealGame {
@@ -157,56 +168,20 @@ function Focus-UnrealGame {
     }
 }
 
-# Function to trigger the screensaver
-function Trigger-Screensaver {
-   
-    $chromeFocused = Focus-WindowByProcessName -processName "chrome"
-    if ($chromeFocused) {
-        Write-Host "Intro Chrome window found and activated."
-    } else {
-        Write-Host "Failed to activate Intro Chrome window."
-    }
-
-    $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
-    if ($screensaverProcess) {
-        Write-Host "Screensaver is already running. Skipping new instance,switching focus"
-                $focused = Focus-WindowByProcessName -processName "VideoScreensaver" -windowTitle "VideoScreensaver"
-        if (-not $focused) {
-            Write-Host "Could not focus screensaver window, forcing new instance..."
-            # If focus failed, kill existing instance and start new
-            Stop-Process -Name "VideoScreensaver" -Force
-            Start-Process $fullSaver
-        }
-        return
-    }
-    Write-Host "Triggering screensaver..."
-    if (Test-Path $fullSaver) {
-        # Start with WindowStyle Hidden to prevent flash
-        Start-Process $fullSaver -WindowStyle Hidden
-        # Give it time to launch before focusing
-        Start-Sleep -Milliseconds 500
-        Focus-WindowByProcessName -processName "VideoScreensaver" -windowTitle "VideoScreensaver"
-    } else {
-        Write-Host "Screensaver path not found: $fullSaver"
-    }
-}
-
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
-    Write-Host "Deactivating screensaver..."
+   Write-Host "Deactivating screensaver..."
     
-    # Close the screensaver process if it's running
-     Get-Process -Name "VideoScreensaver*" -ErrorAction SilentlyContinue | Stop-Process -Force
-
      # Wait a moment before showing the graphical intro
-    Show-GraphicalIntro
-    Start-Sleep -Milliseconds 1000
-    # Wait a moment after showing the graphical introf
+    Start-Sleep -Milliseconds 500
+    $serialPort.Open()
+    $serialPort.WriteLine("1")
+    $serialPort.Close()
+    Show-Page  -WebsiteName "Graphical Intro" -KeySequence "^1"
+    Start-Sleep -Milliseconds 3000
     Focus-UnrealGame
 }
 
-# Preload Chrome with two tabs
-Preload-Chrome
 
 # Function to count connected USB devices
 function Count-USBDevices {
@@ -218,6 +193,8 @@ function Count-USBDevices {
 Write-Host "Entering main loop..."
 $previousDeviceCount = Count-USBDevices
 
+Preload-Chrome
+
 while ($true) {
     Write-Host "Inside loop, waiting 100 ms..."
     Start-Sleep -Milliseconds 100
@@ -225,7 +202,7 @@ while ($true) {
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
-        Trigger-Screensaver
+        Show-Page  -WebsiteName "Screensaver page" -KeySequence "^2"
         Block-KeyboardInput
         $serialPort.Open()
         $serialPort.WriteLine("0")
@@ -236,15 +213,7 @@ while ($true) {
         Deactivate-Screensaver
         Unblock-KeyboardInput
     }
-    $processes = Get-Process -Name "VideoScreensaver*"
-
-    Write-Host "$($processes.count)"
-    Write-Host "$($processes.count -gt 1)"
-
-    if($processes.count -gt 1){
-        Stop-Process -Name "VideoScreensaver*" -Force 
-    }
-
+   
     $previousDeviceCount = $currentDeviceCount
 }
 

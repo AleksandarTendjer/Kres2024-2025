@@ -20,13 +20,13 @@ $fileLocal = "video1.html"
 $filePage = Join-Path -Path $scriptDirectory -ChildPath $fileLocal
 
 # Define the file name
-$fileSaver = "VideoScreensaver-1.0\VideoScreensaver.scr"
+$fileSaver = "videosaver.html"
 
 # Combine the directory and file name to get the full path
 $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 
 # Combine the directory and file name to get the full path
-$fullSaver = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
+$fileScreensaverFullPath = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
 
 # Function to preload Chrome with two tabs
@@ -37,40 +37,31 @@ function Preload-Chrome {
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
         Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
         Start-Sleep -Seconds 5
-        Write-Host "Opening kiosk website in Chrome..."
+        Write-Host "Opening kiosk websites in Chrome..."
         Start-Process $chromePath "--kiosk $filePage" -NoNewWindow 
+        Start-Sleep -Seconds 1
+        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow 
         Start-Sleep -Seconds 1
     } else {
         Write-Host "Chrome is already running."
     }
 }
 
-# Function to show the intro screen by switching to the first tab in Chrome
-function Show-GraphicalIntro {
-    $serialPort.Open()
-    $serialPort.WriteLine("1")
-    $serialPort.Close()
-    Write-Host "Showing graphical intro screen..."
-    $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
-    if ($chromeProcess) {
-        $wshell = New-Object -ComObject wscript.shell
-        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
-        Start-Sleep -Milliseconds 1000
-        $wshell.SendKeys("^1") # Switch to the first tab
-    }
-}
-# Function to show the kiosk website by switching to the second tab in Chrome
-function Show-KioskWebsite {
-    Write-Host "Showing kiosk website..."
+function Show-Page {
+    param (
+        [string]$WebsiteName,
+        [string]$KeySequence
+    )
+
+    Write-Host "Showing $WebsiteName website..."
     $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if ($chromeProcess) {
         $wshell = New-Object -ComObject wscript.shell
         $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
         Start-Sleep -Milliseconds 500
-        $wshell.SendKeys("^2")  # Switch to the second tab
+        $wshell.SendKeys($KeySequence)
     }
 }
-
 
 # Function to mute the system volume
 function Mute-Volume {
@@ -84,44 +75,20 @@ function Unmute-Volume {
     nircmd.exe mutesysvolume 0
 }
 
-# Function to trigger the screensaver
-function Trigger-Screensaver {
-    # Switch to the first tab in Chrome before activating the screensaver
-    $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
-    if ($chromeProcess) {
-        $wshell = New-Object -ComObject wscript.shell
-        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
-        Start-Sleep -Milliseconds 500
-        $wshell.SendKeys("^1") # Switch to the first tab
-    }
-    Write-Host "Triggering screensaver..."
-    $screensaverPath = "$fullSaver"
-    if (Test-Path $screensaverPath) {
-        # Mute system volume
-        Mute-Volume
-        Start-Process $screensaverPath
-    } else {
-        Write-Host "Screensaver path not found: $screensaverPath"
-    }
-}
-
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
    Write-Host "Deactivating screensaver..."
     
-    # Close the screensaver process if it's running
-    $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
-    if ($screensaverProcess) {
-        Stop-Process -Name "VideoScreensaver" -Force
-    }
-
     # Unmute system volume
     Unmute-Volume
      # Wait a moment before showing the graphical intro
     Start-Sleep -Milliseconds 500
-    Show-GraphicalIntro
+    $serialPort.Open()
+    $serialPort.WriteLine("1")
+    $serialPort.Close()
+    Show-Page  -WebsiteName "Graphical Intro" -KeySequence "^1"
     Start-Sleep -Milliseconds 3000
-    Show-KioskWebsite
+    Show-Page  -WebsiteName "Kiosk" -KeySequence "^2"
 }
 
 # Function to count connected USB devices
@@ -147,7 +114,7 @@ while ($true) {
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
-        Trigger-Screensaver
+        Show-Page  -WebsiteName "Screensaver page" -KeySequence "^3"
         $serialPort.Open()
         $serialPort.WriteLine("0")
         $serialPort.Close()

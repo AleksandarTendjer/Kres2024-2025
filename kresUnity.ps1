@@ -23,7 +23,7 @@ $fileGame = "Super Poster Boy 2"
 
 
 # Define the file name
-$fileSaver = "VideoScreensaver-1.0\VideoScreensaver.scr"
+$fileSaver = "videosaver.html"
 
 
 # Combine the directory and file name to get the full path
@@ -31,43 +31,7 @@ $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 
 
 # Combine the directory and file name to get the full path
-$fullSaver = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
-
-
-
-
-
-
-# Ensure the InputSimulator type is defined
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class InputSimulator {
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
-    public const int MOUSEEVENTF_MOVE = 0x0001;
-
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-    public const int KEYEVENTF_EXTENDEDKEY = 0x1;
-    public const int KEYEVENTF_KEYUP = 0x2;
-    public const byte VK_SHIFT = 0x10;
-
-
-    public static void MoveMouse() {
-        mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, UIntPtr.Zero);
-        mouse_event(MOUSEEVENTF_MOVE, 0, -1, 0, UIntPtr.Zero);
-    }
-
-
-    public static void PressKey() {
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-    }
-}
-"@
-
+$fileScreensaverFullPath = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
 
 
@@ -170,30 +134,29 @@ function Preload-Chrome {
         Write-Host "Preloading Chrome with welcome.html in fullscreen..."
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
         Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
-        
+        Start-Sleep -Seconds 5
+        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow 
+        Start-Sleep -Seconds 1
     } else {
         Write-Host "Chrome is already running."
     }
 }
 
+function Show-Page {
+    param (
+        [string]$WebsiteName,
+        [string]$KeySequence
+    )
 
-# Function to show the intro screen by switching to the first tab in Chrome
-function Show-GraphicalIntro {
-    $serialPort.Open()
-    $serialPort.WriteLine("1")
-    $serialPort.Close()
-    Write-Host "Showing graphical intro screen..."
+    Write-Host "Showing $WebsiteName website..."
     $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if ($chromeProcess) {
         $wshell = New-Object -ComObject wscript.shell
         $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
-        Start-Sleep -Milliseconds 1000
-        $wshell.SendKeys("^1") # Switch to the first tab
+        Start-Sleep -Milliseconds 500
+        $wshell.SendKeys($KeySequence)
     }
 }
-
-
-
 
 # Function to bring Unity game back to focus
 function Focus-UnityGame {
@@ -216,42 +179,19 @@ function Focus-UnityGame {
     }
 }
 
-
-# Function to trigger the screensaver
-function Trigger-Screensaver {
-   
-    $chromeFocused = Focus-WindowByProcessName -processName "chrome"
-    if ($chromeFocused) {
-        Write-Host "Intro Chrome window found and activated."
-    } else {
-        Write-Host "Failed to activate Intro Chrome window."
-    }
-    Write-Host "Triggering screensaver..."
-    $screensaverPath = "$fullSaver"
-    if (Test-Path $screensaverPath) {
-        Start-Process $screensaverPath
-    } else {
-        Write-Host "Screensaver path not found: $screensaverPath"
-    }
-}
-
-
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
-    Write-Host "Deactivating screensaver..."
+   Write-Host "Deactivating screensaver..."
     
-    # Close the screensaver process if it's running
-    $screensaverProcess = Get-Process -Name "VideoScreensaver" -ErrorAction SilentlyContinue
-    if ($screensaverProcess) {
-        Stop-Process -Name "VideoScreensaver" -Force
-    }
-    
+    # Unmute system volume
+    Unmute-Volume
      # Wait a moment before showing the graphical intro
-    
-     Start-Sleep -Milliseconds 500
-     Show-GraphicalIntro
+    Start-Sleep -Milliseconds 500
+    $serialPort.Open()
+    $serialPort.WriteLine("1")
+    $serialPort.Close()
+    Show-Page  -WebsiteName "Graphical Intro" -KeySequence "^1"
     Start-Sleep -Milliseconds 3000
-     # Wait a moment after showing the graphical introf
     Focus-UnityGame
 }
 
@@ -276,10 +216,9 @@ while ($true) {
     Start-Sleep -Milliseconds 100
     $currentDeviceCount = Count-USBDevices
 
-
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
-        Trigger-Screensaver
+        Show-Page  -WebsiteName "Screensaver page" -KeySequence "^2"
         $serialPort.Open()
         $serialPort.WriteLine("0")
         $serialPort.Close()
@@ -287,15 +226,6 @@ while ($true) {
         Write-Host "USB device count increased. Deactivating screensaver and sending '1' to serial port..."
          # Wait for 2 seconds before deactivating the screensaver
         Deactivate-Screensaver
-    }
-
-     $processes = Get-Process -Name "VideoScreensaver*"
-
-    Write-Host "$($processes.count)"
-    Write-Host "$($processes.count -gt 1)"
-
-    if($processes.count -gt 1){
-        Stop-Process -Name "VideoScreensaver*" -Force 
     }
 
     $previousDeviceCount = $currentDeviceCount

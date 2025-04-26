@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Video Background Example</title>
+		<style>
+			/* Style the video: 100% width and height to cover the entire window */
+			#myVideo {
+				position: fixed;
+				right: 0;
+				bottom: 0;
+				min-width: 100%;
+				min-height: 100%;
+			}
+
+			/* Add some content on top of the video */
+			.content {
+				position: fixed;
+				background: rgba(0, 0, 0, 0.5);
+				color: #f1f1f1;
+				width: 100%;
+				padding: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- The image -->
+		<img src="./monkeys.jpg" />
+
+		<script>
+			function myFunction() {
+				var video = document.getElementById("myVideo");
+				if (video.paused) {
+					video.play();
+					document.getElementById("myBtn").innerHTML = "Pause";
+				} else {
+					video.pause();
+					document.getElementById("myBtn").innerHTML = "Play";
+				}
+			}
+		</script>
+	</body>
+</html>
