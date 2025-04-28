@@ -136,28 +136,32 @@ function Preload-Chrome {
     if (-not $chromeProcess) {
         Write-Host "Preloading Chrome with welcome.html in fullscreen..."
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-        Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
+                Start-Process $chromePath "--kiosk file:///$fileScreensaverFullPath" -NoNewWindow 
         Start-Sleep -Seconds 5
-        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow 
+                Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
         Start-Sleep -Seconds 1
     } else {
         Write-Host "Chrome is already running."
     }
 }
 
+
+
+
 function Show-Page {
     param (
         [string]$WebsiteName,
-        [string]$KeySequence
+        [string]$KeySequence,
+        [string]$ChromeTitle
     )
 
     Write-Host "Showing $WebsiteName website..."
     $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if ($chromeProcess) {
         $wshell = New-Object -ComObject wscript.shell
-        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
+        $activated = $wshell.AppActivate($ChromeTitle)
         Start-Sleep -Milliseconds 500
-        $wshell.SendKeys($KeySequence)
+        $switching= $wshell.SendKeys($KeySequence)
     }
 }
 
@@ -193,7 +197,7 @@ function Deactivate-Screensaver {
     $serialPort.Open()
     $serialPort.WriteLine("1")
     $serialPort.Close()
-    Show-Page  -WebsiteName "Graphical Intro" -KeySequence "^1"
+    Show-Page  -WebsiteName "Graphical Intro" -KeySequence "^2" -ChromeTitle "Welcome"
     Start-Sleep -Milliseconds 3000
     Focus-UnityGame
 }
@@ -221,7 +225,7 @@ while ($true) {
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
-        Show-Page  -WebsiteName "Screensaver page" -KeySequence "^2"
+        Show-Page  -WebsiteName "Screensaver page" -KeySequence "^1" -ChromeTitle "Videosaver"
         Block-KeyboardInput
         $serialPort.Open()
         $serialPort.WriteLine("0")
