@@ -34,7 +34,6 @@ $fullWelcome = Join-Path -Path $scriptDirectory -ChildPath $fileWelcome
 $fileScreensaverFullPath = Join-Path -Path $scriptDirectory -ChildPath $fileSaver
 
 
-
 # Define the necessary user32.dll methods if they don't already exist
 if (-not ([System.Management.Automation.PSTypeName]'User32').Type) {
     Add-Type @"
@@ -44,32 +43,36 @@ if (-not ([System.Management.Automation.PSTypeName]'User32').Type) {
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
-
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool IsIconic(IntPtr hWnd);
-
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr GetForegroundWindow();
 
-
         [DllImport("user32.dll", SetLastError = true)]
         public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
-
 
         public const int SW_RESTORE = 9;
     }
 "@
 }
 
+
+# Function to block keyboard input
+function Block-KeyboardInput {
+    [User32]::BlockInput($true)
+}
+
+# Function to unblock keyboard input
+function Unblock-KeyboardInput {
+    [User32]::BlockInput($false)
+}
 
 # Function to focus a window by its process name
 function Focus-WindowByProcessName {
@@ -219,6 +222,7 @@ while ($true) {
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
         Show-Page  -WebsiteName "Screensaver page" -KeySequence "^2"
+        Block-KeyboardInput
         $serialPort.Open()
         $serialPort.WriteLine("0")
         $serialPort.Close()
@@ -226,6 +230,7 @@ while ($true) {
         Write-Host "USB device count increased. Deactivating screensaver and sending '1' to serial port..."
          # Wait for 2 seconds before deactivating the screensaver
         Deactivate-Screensaver
+        Unblock-KeyboardInput
     }
 
     $previousDeviceCount = $currentDeviceCount

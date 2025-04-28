@@ -59,17 +59,6 @@ if (-not ([System.Management.Automation.PSTypeName]'User32').Type) {
 "@
 }
 
-# Define the necessary user32.dll methods if they don't already exist
-if (-not ([System.Management.Automation.PSTypeName]'User32').Type) {
-    Add-Type @"
-    using System;
-    using System.Runtime.InteropServices;
-    public class User32 {
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool BlockInput(bool fBlockIt);
-    }
-"@
-}
 
 # Function to block keyboard input
 function Block-KeyboardInput {
