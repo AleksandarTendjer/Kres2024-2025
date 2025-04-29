@@ -1,3 +1,5 @@
+# Load the AudioDeviceCmdlets module
+Import-Module AudioDeviceCmdlets
 
 #Arduino alive
 # Define the serial port settings
@@ -104,15 +106,25 @@ function Focus-WindowByProcessName {
         Write-Host "Focus error: $_"
     }
 }
-    
 
+# Function to mute the system volume
+function Mute-Volume {
+    Write-Host "Muting system volume..."
+    Set-AudioDevice -PlaybackMute $true
+}
+
+# Function to unmute the system volume
+function Unmute-Volume {
+    Write-Host "Unmuting system volume..."
+    Set-AudioDevice -PlaybackMute $false
+}
 # Function to preload Chrome
 function Preload-Chrome {
     $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if (-not $chromeProcess) {
         Write-Host "Preloading Chrome with welcome.html in fullscreen..."
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-                Start-Process $chromePath "--kiosk file:///$fileScreensaverFullPath" -NoNewWindow 
+                Start-Process $chromePath "--kiosk file:///$fileScreensaverFullPath" -NoNewWindow
         Start-Sleep -Seconds 5
                 Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
         Start-Sleep -Seconds 1
@@ -163,7 +175,10 @@ function Focus-UnrealGame {
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
    Write-Host "Deactivating screensaver..."
-    
+
+    # Unmute system volume
+    Unmute-Volume
+
      # Wait a moment before showing the graphical intro
     Start-Sleep -Milliseconds 500
     $serialPort.Open()
@@ -194,6 +209,8 @@ while ($true) {
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
+        #Mute system Volume
+        Mute-Volume
         Show-Page  -WebsiteName "Screensaver page" -KeySequence "^1" -ChromeTitle "Videosaver"
         Block-KeyboardInput
         $serialPort.Open()
@@ -205,7 +222,6 @@ while ($true) {
         Deactivate-Screensaver
         Unblock-KeyboardInput
     }
-   
+
     $previousDeviceCount = $currentDeviceCount
 }
-

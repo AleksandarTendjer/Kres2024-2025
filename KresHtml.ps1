@@ -1,3 +1,5 @@
+# Load the AudioDeviceCmdlets module
+Import-Module AudioDeviceCmdlets
 
 #Arduino alive
 # Define the serial port settings
@@ -38,12 +40,30 @@ function Preload-Chrome {
         Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
         Start-Sleep -Seconds 5
         Write-Host "Opening kiosk websites in Chrome..."
-        Start-Process $chromePath "--kiosk $filePage" -NoNewWindow 
+        Start-Process $chromePath "--kiosk $filePage" -NoNewWindow
         Start-Sleep -Seconds 1
-        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow 
+        Start-Process $chromePath "--kiosk $fileScreensaverFullPath" -NoNewWindow
         Start-Sleep -Seconds 1
     } else {
         Write-Host "Chrome is already running."
+    }
+}
+
+function Show-PageIntro {
+    param (
+        [string]$WebsiteName,
+        [string]$KeySequence
+    )
+
+    Write-Host "Showing $WebsiteName website..."
+    $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
+    if ($chromeProcess) {
+        $wshell = New-Object -ComObject wscript.shell
+                Write-Host "Attempting to activate window with title: $($chromeProcess[0].MainWindowTitle)"
+
+        $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
+        Start-Sleep -Milliseconds 500
+        $wshell.SendKeys($KeySequence)
     }
 }
 
@@ -57,6 +77,7 @@ function Show-Page {
     $chromeProcess = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if ($chromeProcess) {
         $wshell = New-Object -ComObject wscript.shell
+        Write-Host "Attempting to activate window with title: $($chromeProcess[0].MainWindowTitle)"
         $wshell.AppActivate($chromeProcess[0].MainWindowTitle)
         Start-Sleep -Milliseconds 500
         $wshell.SendKeys($KeySequence)
@@ -66,19 +87,19 @@ function Show-Page {
 # Function to mute the system volume
 function Mute-Volume {
     Write-Host "Muting system volume..."
-    nircmd.exe mutesysvolume 1
+    Set-AudioDevice -PlaybackMute $true
 }
 
 # Function to unmute the system volume
 function Unmute-Volume {
     Write-Host "Unmuting system volume..."
-    nircmd.exe mutesysvolume 0
+    Set-AudioDevice -PlaybackMute $false
 }
 
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
    Write-Host "Deactivating screensaver..."
-    
+
     # Unmute system volume
     Unmute-Volume
      # Wait a moment before showing the graphical intro
@@ -113,16 +134,17 @@ while ($true) {
     $currentDeviceCount = Count-USBDevices
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
-        Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
+        Write-Host "USB device count decreased. Triggering screensaver and sending 0 to serial port..."
+        #Mute system Volume
+        Mute-Volume
         Show-Page  -WebsiteName "Screensaver page" -KeySequence "^3"
         $serialPort.Open()
         $serialPort.WriteLine("0")
         $serialPort.Close()
     } elseif ($currentDeviceCount -gt $previousDeviceCount) {
-        Write-Host "USB device count increased. Deactivating screensaver and sending '1' to serial port..."
+        Write-Host "USB device count increased. Deactivating screensaver and sending 1 to serial port..."
         Deactivate-Screensaver
     }
 
     $previousDeviceCount = $currentDeviceCount
 }
-

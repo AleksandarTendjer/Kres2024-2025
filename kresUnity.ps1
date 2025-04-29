@@ -1,3 +1,6 @@
+# Load the AudioDeviceCmdlets module
+Import-Module AudioDeviceCmdlets
+
 #Arduino alive
 # Define the serial port settings
 $portName = "COM11"  # Replace with your Arduino's COM port
@@ -103,7 +106,7 @@ function Focus-WindowByProcessName {
             Write-Host "No window handle found for process ${processName}"
         }
     }
-    
+
     # If not found by process name, try by window title
     if (-not $found -and $windowTitle) {
         Write-Host "Attempting to find window by title: ${windowTitle}"
@@ -125,7 +128,7 @@ function Focus-WindowByProcessName {
             Write-Host "No window handle found for title ${windowTitle}"
         }
     }
-    
+
     return $found
 }
 
@@ -136,7 +139,7 @@ function Preload-Chrome {
     if (-not $chromeProcess) {
         Write-Host "Preloading Chrome with welcome.html in fullscreen..."
         $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-                Start-Process $chromePath "--kiosk file:///$fileScreensaverFullPath" -NoNewWindow 
+                Start-Process $chromePath "--kiosk file:///$fileScreensaverFullPath" -NoNewWindow
         Start-Sleep -Seconds 5
                 Start-Process $chromePath "--kiosk file:///$fullWelcome --new-window --start-fullscreen"
         Start-Sleep -Seconds 1
@@ -186,10 +189,22 @@ function Focus-UnityGame {
     }
 }
 
+# Function to mute the system volume
+function Mute-Volume {
+    Write-Host "Muting system volume..."
+    Set-AudioDevice -PlaybackMute $true
+}
+
+# Function to unmute the system volume
+function Unmute-Volume {
+    Write-Host "Unmuting system volume..."
+    Set-AudioDevice -PlaybackMute $false
+}
+
 # Function to deactivate the screensaver
 function Deactivate-Screensaver {
    Write-Host "Deactivating screensaver..."
-    
+
     # Unmute system volume
     Unmute-Volume
      # Wait a moment before showing the graphical intro
@@ -225,6 +240,8 @@ while ($true) {
 
     if ($currentDeviceCount -lt $previousDeviceCount) {
         Write-Host "USB device count decreased. Triggering screensaver and sending '0' to serial port..."
+        #Mute system Volume
+        Mute-Volume
         Show-Page  -WebsiteName "Screensaver page" -KeySequence "^1" -ChromeTitle "Videosaver"
         Block-KeyboardInput
         $serialPort.Open()
@@ -239,5 +256,3 @@ while ($true) {
 
     $previousDeviceCount = $currentDeviceCount
 }
-
-
